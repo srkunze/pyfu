@@ -1,26 +1,26 @@
 #!/usr/bin/env python
-from __future__ import unicode_literals
 
 #TODO: cStringIO
-import io
 import codecs, StringIO, encodings
 from encodings import utf_8
-import itertools
+
 
 def decode(input, errors='strict'):
-    return utf_8.decode(b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu\n' + input, errors)
+    return utf_8.decode(b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu', errors)
 
 
 class IncrementalDecoder(utf_8.IncrementalDecoder):
-    def __init__(self, errors='strict'):
-        IncrementalDecoder.__init__(self, errors)
-        self.buffer = b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu\n' # undecoded input that is kept between calls to decode()
+
+    def decode(self, input, final=False):
+        if final:
+            return super(IncrementalDecoder, self).decode(b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu', final=True)
 
 
 class StreamReader(utf_8.StreamReader):
+
     def __init__(self, *args, **kwargs):
         codecs.StreamReader.__init__(self, *args, **kwargs)
-        self.stream = StringIO.StringIO(b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu\n' + self.stream.read())
+        self.stream = StringIO.StringIO(b'import pyfu ; pyfu.magic(__file__, __name__); del pyfu')
 
 
 utf8_codec_info = encodings.search_function('utf8')
@@ -36,6 +36,7 @@ codec_info = codecs.CodecInfo(
 
 
 def search_function(encoding):
-    return codec_info if encoding == 'pyfu' else None
+    if encoding == 'pyfu':
+        return codec_info
 
 codecs.register(search_function)
