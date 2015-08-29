@@ -13,5 +13,22 @@ def magic(path, name):
         #TODO: find a better way to remove multiple 'coding: pyfu'
         file.readline()
         ast_object = ast.parse(file.read())
+    CheckVisitor().visit(ast_object)
     code = compile(ast_object, path, 'exec')
     exec(code,  module.__dict__)
+
+
+class CheckVisitor(ast.NodeVisitor):
+
+    def visit_FunctionDef(self, node):
+        pass
+
+    def visit(self, node):
+        allowed_node_classes = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.Name, ast.Load, ast.Pass)
+        if not isinstance(node, allowed_node_classes):
+            raise NotSupportedError(node, node.lineno)
+        return super(CheckVisitor, self).visit(node)
+
+
+class NotSupportedError(Exception):
+    pass

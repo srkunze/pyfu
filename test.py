@@ -7,3 +7,7 @@ class B(A):
 
 class A(object):
     pass
+
+def a():
+    for i in range(10):
+        print(i)
