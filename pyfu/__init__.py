@@ -26,7 +26,7 @@ class CheckVisitor(ast.NodeVisitor):
     def visit(self, node):
         allowed_node_classes = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.Name, ast.Load, ast.Pass)
         if not isinstance(node, allowed_node_classes):
-            raise NotSupportedError(node, node.lineno)
+            raise NotSupportedError(node)
         return super(CheckVisitor, self).visit(node)
 
 
