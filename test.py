@@ -6,6 +6,7 @@ class B(A):
         def xxx(self):
             pass
 
+    @a(A)
     def a(self):
         pass
 

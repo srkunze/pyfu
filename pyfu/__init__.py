@@ -1,5 +1,4 @@
 # -*- coding: utf8 -*-
-import codecs
 import sys
 import ast
 import types
@@ -10,7 +9,7 @@ def magic(path, name):
     module.__file__ = path
     module.__name__ = name
     sys.modules[name] = module
-    with codecs.open(path, 'r', 'utf-8') as file:
+    with open(path) as file:
         #TODO: find a better way to remove multiple 'coding: pyfu'
         file.readline()
         new_content = b'# -*- coding: utf-8 -*-\n' + file.read()
@@ -19,29 +18,6 @@ def magic(path, name):
     transform(module_ast)
     code = compile(module_ast, path, 'exec')
     exec(code,  module.__dict__)
-
-
-def transform(module_ast):
-    name_dict = {}
-    collect_names(name_dict, module_ast)
-
-    #TODO: functions and methods are all fine
-    #TODO: collect them and create them first
-    funcs = {}
-    CollectFunctionsVisitor(function_dict=funcs).visit(module_ast)
-    #TODO: collect metaclasses and create them second in the correct order
-    #TODO: collect classes
-    pass
-
-
-def collect_names(name_dict, node):
-    for field, value in ast.iter_fields(node):
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, (ast.ClassDef, ast.FunctionDef)):
-                    name_dict[item.name] = {}
-                if isinstance(item, ast.ClassDef):
-                    collect_names(name_dict[item.name], item)
 
 
 class CheckVisitor(ast.NodeVisitor):
@@ -56,16 +32,72 @@ class CheckVisitor(ast.NodeVisitor):
         return super(CheckVisitor, self).visit(node)
 
 
-class CollectFunctionsVisitor(ast.NodeVisitor):
+def transform(module_ast):
+    dependency_graph = DependencyGraph(module_ast)
+    from pprint import pprint
+    pprint(dependency_graph)
+    pprint(dependency_graph.linearized)
 
-    def __init__(self, function_dict):
-        self.function_dict = function_dict
+
+class DependencyGraph(dict):
+
+    def __init__(self, ast_node):
+        self.ast_node = ast_node
+        self._build(ast_node, [])
+
+    def _build(self, node, ns):
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, ast.FunctionDef):
+                        depends_on = set()
+                        for decorator in item.decorator_list:
+                            CollectNamesVisitor(depends_on).visit(decorator)
+                        self['.'.join(ns + [item.name])] = {
+                            'node': item,
+                            'depends_on': depends_on,
+                        }
+                    if isinstance(item, ast.ClassDef):
+                        depends_on = set()
+                        for decorator in item.decorator_list:
+                            CollectNamesVisitor(depends_on).visit(decorator)
+                        depends_on.update({base.id for base in item.bases})
+                        self['.'.join(ns + [item.name])] = {
+                            'node': item,
+                            'depends_on': depends_on,
+                        }
+                        self._build(item, ns + [item.name])
+
+    @property
+    def linearized(self):
+        builtins = set(__builtins__.keys())
+        satisfied = [name for name, name_data in self.items() if not name_data['depends_on']]
+        satisfied_set = set(satisfied)
+        unsatisfied = set(self.keys()) - set(satisfied)
+
+        while unsatisfied:
+            for name in unsatisfied:
+                if not (self[name]['depends_on'] - satisfied_set - builtins):
+                    satisfied.append(name)
+                    satisfied_set.add(name)
+                    unsatisfied.remove(name)
+                    break
+
+        return satisfied
+
+class CollectNamesVisitor(ast.NodeVisitor):
+
+    def __init__(self, names):
+        self.names = names
+
+    def visit_Name(self, node):
+        self.names.add(node.id)
 
     def visit(self, node):
-        if isinstance(node, ast.FunctionDef):
-            self.function_dict[node.name] = node
-            return
-        return super(CollectFunctionsVisitor, self).visit(node)
+        node_classes_to_visit = (ast.Module, ast.ClassDef, ast.Name, ast.Load, ast.Call)
+        if isinstance(node, node_classes_to_visit):
+            super(CollectNamesVisitor, self).visit(node)
+        return self
 
 
 class NotSupportedError(Exception):
