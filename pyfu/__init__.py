@@ -76,12 +76,16 @@ class DependencyGraph(dict):
         unsatisfied = set(self.keys()) - set(satisfied)
 
         while unsatisfied:
+            found_one = False
             for name in unsatisfied:
                 if not (self[name]['depends_on'] - satisfied_set - builtins):
+                    found_one = True
                     satisfied.append(name)
                     satisfied_set.add(name)
                     unsatisfied.remove(name)
                     break
+            if not found_one:
+                raise UnsatisfiableDependenciesError
 
         return satisfied
 
@@ -104,13 +108,5 @@ class NotSupportedError(Exception):
     pass
 
 
-
-
-
-
-
-
-
-
-
-
+class UnsatisfiableDependenciesError(Exception):
+    pass
