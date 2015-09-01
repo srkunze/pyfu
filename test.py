@@ -1,13 +1,21 @@
 # -*- coding: pyfu -*-
 
-
 class B(A):
-    pass
+
+    class Meta:
+        def xxx(self):
+            pass
+
+    def a(self):
+        pass
 
 
 class A(object):
-    pass
 
-def a():
-    for i in range(10):
+    def b(self):
+        pass
+
+
+def a(n=10):
+    for i in range(n):
         print(i)

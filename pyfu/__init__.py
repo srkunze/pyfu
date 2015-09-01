@@ -13,11 +13,34 @@ def magic(path, name):
         #TODO: find a better way to remove multiple 'coding: pyfu'
         file.readline()
         new_content = '# -*- coding: utf-8 -*-\n' + file.read()
-        ast_object = ast.parse(new_content)
-    CheckVisitor().visit(ast_object)
-    Transformer().visit(ast_object)
-    code = compile(ast_object, path, 'exec')
+        module_ast = ast.parse(new_content)
+    CheckVisitor().visit(module_ast)
+    transform(module_ast)
+    code = compile(module_ast, path, 'exec')
     exec(code,  module.__dict__)
+
+
+def transform(module_ast):
+    name_dict = {}
+    collect_names(name_dict, module_ast)
+
+    #TODO: functions and methods are all fine
+    #TODO: collect them and create them first
+    funcs = {}
+    CollectFunctionsVisitor(function_dict=funcs).visit(module_ast)
+    #TODO: collect metaclasses and create them second in the correct order
+    #TODO: collect classes
+    pass
+
+
+def collect_names(name_dict, node):
+    for field, value in ast.iter_fields(node):
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, (ast.ClassDef, ast.FunctionDef)):
+                    name_dict[item.name] = {}
+                if isinstance(item, ast.ClassDef):
+                    collect_names(name_dict[item.name], item)
 
 
 class CheckVisitor(ast.NodeVisitor):
@@ -32,9 +55,29 @@ class CheckVisitor(ast.NodeVisitor):
         return super(CheckVisitor, self).visit(node)
 
 
-class Transformer(ast.NodeTransformer):
-    pass
+class CollectFunctionsVisitor(ast.NodeVisitor):
+
+    def __init__(self, function_dict):
+        self.function_dict = function_dict
+
+    def visit(self, node):
+        if isinstance(node, ast.FunctionDef):
+            self.function_dict[node.name] = node
+            return
+        return super(CollectFunctionsVisitor, self).visit(node)
 
 
 class NotSupportedError(Exception):
     pass
+
+
+
+
+
+
+
+
+
+
+
+
