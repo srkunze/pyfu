@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+import codecs
 import sys
 import ast
 import types
@@ -9,10 +10,10 @@ def magic(path, name):
     module.__file__ = path
     module.__name__ = name
     sys.modules[name] = module
-    with open(path) as file:
+    with codecs.open(path, 'r', 'utf-8') as file:
         #TODO: find a better way to remove multiple 'coding: pyfu'
         file.readline()
-        new_content = '# -*- coding: utf-8 -*-\n' + file.read()
+        new_content = b'# -*- coding: utf-8 -*-\n' + file.read()
         module_ast = ast.parse(new_content)
     CheckVisitor().visit(module_ast)
     transform(module_ast)
