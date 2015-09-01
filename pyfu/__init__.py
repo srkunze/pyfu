@@ -34,9 +34,8 @@ class CheckVisitor(ast.NodeVisitor):
 
 def transform(module_ast):
     dependency_graph = DependencyGraph(module_ast)
-    from pprint import pprint
-    pprint(dependency_graph)
-    pprint(dependency_graph.linearized)
+    dependency_graph.linearized
+    #TODO: generate an AST that implements the linearized dependency graph
 
 
 class DependencyGraph(dict):
@@ -50,7 +49,7 @@ class DependencyGraph(dict):
             if isinstance(value, list):
                 for item in value:
                     if isinstance(item, ast.FunctionDef):
-                        depends_on = set()
+                        depends_on = {'.'.join(ns)} if ns else set()
                         for decorator in item.decorator_list:
                             CollectNamesVisitor(depends_on).visit(decorator)
                         self['.'.join(ns + [item.name])] = {
@@ -58,7 +57,7 @@ class DependencyGraph(dict):
                             'depends_on': depends_on,
                         }
                     if isinstance(item, ast.ClassDef):
-                        depends_on = set()
+                        depends_on = {'.'.join(ns)} if ns else set()
                         for decorator in item.decorator_list:
                             CollectNamesVisitor(depends_on).visit(decorator)
                         depends_on.update({base.id for base in item.bases})
@@ -85,9 +84,10 @@ class DependencyGraph(dict):
                     unsatisfied.remove(name)
                     break
             if not found_one:
-                raise UnsatisfiableDependenciesError
+                raise UnsatisfiableDependenciesError(self, unsatisfied)
 
         return satisfied
+
 
 class CollectNamesVisitor(ast.NodeVisitor):
 
